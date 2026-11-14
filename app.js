@@ -3,106 +3,30 @@ import { $, $$, esc, uid, ymd, hhmm, rand, pick, toast, state, ctx, load, save, 
 import { AGENTS, agentById, profile, avatarHTML, statusOf, badgeOf, RENDER, isOverdue, sortItems } from './agents.js';
 import { computeAlarms, offsetLabel, DEFAULT_SETTINGS, localTzOffset } from './alarms.js';
 import * as cloud from './cloud.js';
+import { createOffice } from './office.js';
 
 let pushOn = false; // 이 기기가 서버 푸시를 받는 중이면 앱 안에서는 시스템 알림을 중복으로 띄우지 않음
 const mobile = () => matchMedia('(max-width: 760px)').matches;
 
-// ================= 사무실 =================
-const office = $('#office');
-const actors = {};
-const SPOTS = [
-  { x: 50, y: 53 }, { x: 25, y: 53 }, { x: 75, y: 53 }, { x: 6, y: 92 }, { x: 94, y: 92 }, { x: 30, y: 92 }, { x: 70, y: 92 }, { x: 50, y: 92 },
-];
-
+// ================= 사무실 (아이소메트릭 캔버스, office.js) =================
+let office = null;
 function buildOffice() {
-  office.innerHTML = '';
-  const prop = (cls, style, html = '') => { const d = document.createElement('div'); d.className = `prop ${cls}`; d.style.cssText = style; d.innerHTML = html; office.appendChild(d); };
-  prop('window', 'left:4%'); prop('window', 'left:24%');
-  prop('clock', 'left:calc(50% - 24px)', '<span id="clock-text"></span>');
-  prop('board', 'left:62%', '<b>📌 오늘</b><div id="board-text"></div>');
-  prop('plant', 'left:1%; top:46%', '🪴'); prop('plant', 'right:1%; top:46%', '🌿');
-  prop('coffee', 'right:2%; top:84%', '☕');
-  for (const a of AGENTS) {
-    prop('desk', `left:${a.desk.x}%; top:${a.desk.y + 2}%; z-index:${12 + a.desk.y}; --screen:${a.color}`,
-      `<div class="monitor"></div><div class="top"></div><div class="plate" data-plate="${a.id}"></div>`);
-  }
-  for (const a of AGENTS) {
-    const el = document.createElement('div');
-    el.className = 'agent working'; el.dataset.id = a.id; el.tabIndex = 0; el.setAttribute('role', 'button');
-    el.innerHTML = `<div class="bubble"></div><div class="figure"><div class="torso" style="--c:${a.color}"></div><div class="head"></div></div><div class="shadow"></div><div class="name"></div><div class="badge" hidden></div>`;
-    el.onclick = () => openAgent(a.id);
-    el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') openAgent(a.id); };
-    office.appendChild(el);
-    actors[a.id] = { el, x: a.desk.x, y: a.desk.y, tx: a.desk.x, ty: a.desk.y, mode: 'work', until: performance.now() + rand(3000, 10000), bubbleUntil: 0 };
-  }
-  paintAgents();
+  office = createOffice($('#office'), { agents: AGENTS, profileOf: profile, statusOf, onClick: openAgent });
 }
-
-// 이름·사진이 바뀌면 다시 그림
-function paintAgents() {
-  for (const a of AGENTS) {
-    const p = profile(a); const ac = actors[a.id]; if (!ac) continue;
-    $('.head', ac.el).innerHTML = avatarHTML(a, 'face');
-    $('.name', ac.el).textContent = p.name;
-    ac.el.setAttribute('aria-label', `${p.name} (${a.role})`);
-    $(`[data-plate=${a.id}]`).textContent = `${p.name} · ${a.short}`;
-  }
-}
-
-function say(id, text, ms = 3500) {
-  const ac = actors[id]; if (!ac) return;
-  const b = $('.bubble', ac.el); b.textContent = text; b.classList.add('show'); ac.bubbleUntil = performance.now() + ms;
-}
-
-let lastT = performance.now();
-function tick(now) {
-  const dt = Math.min(50, now - lastT); lastT = now;
-  const W = office.clientWidth, H = office.clientHeight;
-  for (const a of AGENTS) {
-    const ac = actors[a.id]; const sel = state.selected === a.id;
-    if (ac.mode === 'walk') {
-      const dx = (ac.tx - ac.x) * W / 100, dy = (ac.ty - ac.y) * H / 100;
-      const dist = Math.hypot(dx, dy), step = 0.055 * dt;
-      if (dist <= step || sel) {
-        if (!sel) { ac.x = ac.tx; ac.y = ac.ty; }
-        const home = ac.tx === a.desk.x && ac.ty === a.desk.y;
-        ac.mode = home ? 'work' : 'idle'; ac.until = now + (home ? rand(8000, 18000) : rand(2500, 6000));
-        if (!home && Math.random() < 0.5) say(a.id, statusOf(a.id));
-      } else {
-        ac.x += (dx / dist) * step * 100 / W; ac.y += (dy / dist) * step * 100 / H;
-        ac.el.classList.toggle('flip', dx < 0);
-      }
-    } else if (now > ac.until && !sel) {
-      if (ac.mode === 'work') { const s = pick(SPOTS); ac.tx = s.x + rand(-4, 4); ac.ty = s.y + rand(-2, 2); }
-      else { ac.tx = a.desk.x; ac.ty = a.desk.y; }
-      ac.mode = 'walk';
-    }
-    ac.el.classList.toggle('walking', ac.mode === 'walk');
-    ac.el.classList.toggle('working', ac.mode === 'work');
-    ac.el.style.left = ac.x + '%'; ac.el.style.top = ac.y + '%';
-    ac.el.style.zIndex = String(10 + Math.round(ac.y));
-    if (ac.bubbleUntil && now > ac.bubbleUntil) { $('.bubble', ac.el).classList.remove('show'); ac.bubbleUntil = 0; }
-  }
-  requestAnimationFrame(tick);
-}
+const paintAgents = () => {}; // 캔버스가 매 프레임 이름·사진을 다시 그림
+const say = (id, text, ms) => office?.say(id, text, ms);
 
 function refresh() {
-  for (const a of AGENTS) {
-    const n = badgeOf(a.id); const b = $('.badge', actors[a.id].el);
-    b.hidden = !n; b.textContent = n > 99 ? '99+' : n;
-  }
+  for (const a of AGENTS) office?.setBadge(a.id, badgeOf(a.id));
   $('#roster').innerHTML = AGENTS.map((a) => `<button data-id="${a.id}">${avatarHTML(a, 'mini')}<span><b>${esc(profile(a).name)}</b> <span class="st">${esc(statusOf(a.id))}</span></span></button>`).join('');
   $$('#roster button').forEach((b) => b.onclick = () => openAgent(b.dataset.id));
-  $('#clock-text').textContent = hhmm(new Date());
-  $('#board-text').innerHTML = state.data.items.filter((i) => !i.done).sort(sortItems).slice(0, 3).map((i) => `· ${esc(i.title)}`).join('<br>') || '모두 완료! 🎉';
   $('#nav-badge').textContent = state.data.items.filter((i) => !i.done).length || '';
 }
 
 // ================= 비서 패널 =================
 function openAgent(id) {
   const a = agentById(id);
-  if (state.selected) actors[state.selected].el.classList.remove('selected');
-  state.selected = id; actors[id].el.classList.add('selected');
+  state.selected = id; office?.select(id);
   if (mobile()) showView('office');
   renderPanelHead(a, false);
   $('#agent-panel').hidden = false;
@@ -110,8 +34,8 @@ function openAgent(id) {
   say(id, '네, 부르셨어요?', 2000);
 }
 function renderPanelHead(a, editing) {
-  const p = profile(a); const ac = actors[a.id];
-  const modeText = { work: '💻 자리에서 업무 중', walk: '🚶 이동 중', idle: '☕ 잠깐 휴식 중' }[ac.mode];
+  const p = profile(a);
+  const modeText = { work: '💻 자리에서 업무 중', walk: '🚶 이동 중', idle: '☕ 잠깐 휴식 중' }[office?.modeOf(a.id) || 'work'];
   const head = $('#panel-head');
   if (!editing) {
     head.innerHTML = `${avatarHTML(a, 'face big')}
@@ -140,8 +64,7 @@ function renderPanelHead(a, editing) {
   $('#edit-cancel').onclick = () => renderPanelHead(a, false);
 }
 function closeAgent() {
-  if (state.selected) actors[state.selected].el.classList.remove('selected');
-  state.selected = null; $('#agent-panel').hidden = true;
+  state.selected = null; office?.select(null); $('#agent-panel').hidden = true;
 }
 const rerenderPanel = () => { if (state.selected && !$('#agent-panel').hidden) RENDER[state.selected]($('#panel-body')); };
 
@@ -156,7 +79,7 @@ function toggleItem(id) {
   const i = state.data.items.find((x) => x.id === id); if (!i) return;
   i.done = !i.done; i.doneAt = i.done ? new Date().toISOString() : null;
   save(); renderList(); refresh(); rerenderPanel();
-  if (i.done) say('tasks', pick(['좋아요! 하나 끝!', '잘하셨어요 👍', '체크 완료!']));
+  if (i.done) { say('tasks', pick(['좋아요! 하나 끝!', '잘하셨어요 👍', '체크 완료!'])); office?.cheer('tasks'); }
 }
 function renderList() {
   const items = state.data.items; const open = items.filter((i) => !i.done);
@@ -381,7 +304,7 @@ function startApp() {
   $('#today').textContent = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
   $('#user-name').textContent = state.mode === 'demo' ? '데모' : (state.user.name || state.user.email);
   if (state.user?.picture) { $('#user-pic').src = state.user.picture; $('#user-pic').hidden = false; }
-  buildOffice(); renderList(); refresh(); requestAnimationFrame(tick);  setInterval(refresh, 30000); setInterval(checkAlarms, 20000); setTimeout(checkAlarms, 1500);
+  buildOffice(); renderList(); refresh();  setInterval(refresh, 30000); setInterval(checkAlarms, 20000); setTimeout(checkAlarms, 1500);
   const h = new Date().getHours();
   setTimeout(() => say('tasks', h < 12 ? '좋은 아침이에요! ☀️' : h < 18 ? '오후도 힘내세요!' : '오늘 하루 수고 많으셨어요'), 600);
   if (state.mode === 'google') {

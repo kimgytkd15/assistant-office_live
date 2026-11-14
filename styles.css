@@ -72,6 +72,8 @@ a { color: var(--accent); }
   background:
     linear-gradient(to bottom, var(--wall) 0 20%, var(--wall-trim) 20% 21.5%, transparent 21.5%),
     repeating-linear-gradient(90deg, var(--floor-a) 0 70px, var(--floor-b) 70px 71px, var(--floor-a) 71px 140px), var(--floor-a); }
+.office { background: #cfe6c7; }
+.office-canvas { position: absolute; inset: 0; display: block; }
 .prop { position: absolute; pointer-events: none; }
 .window { top: 3%; height: 13%; width: 13%; border-radius: 4px; background: linear-gradient(180deg, #a9d2f2, #e3f2fc); border: 4px solid #fafafa; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 .window::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 48%, #fafafa 48% 52%, transparent 52%); }

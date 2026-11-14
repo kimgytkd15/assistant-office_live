@@ -1,6 +1,6 @@
 // 서비스 워커: 오프라인 앱 셸 + 알림/푸시 처리
-const CACHE = 'office-1adda6e';
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'core.js', 'agents.js', 'alarms.js', 'cloud.js', 'config.js', 'manifest.webmanifest',
+const CACHE = 'office-a2f7e3f';
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'core.js', 'agents.js', 'alarms.js', 'cloud.js', 'office.js', 'config.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-72.png'];
 
 self.addEventListener('install', (e) => {
