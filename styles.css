@@ -213,10 +213,14 @@ dialog.sheet::backdrop { background: rgba(0,0,0,.35); }
   .topbar { padding: 6px 12px; padding-top: max(6px, env(safe-area-inset-top)); gap: 8px; }
   .layout { grid-template-columns: minmax(0, 1fr); padding: 10px; padding-bottom: calc(var(--nav-h) + 10px + env(safe-area-inset-bottom)); gap: 10px; }
   body[data-view=office] .view-list, body[data-view=list] .view-office { display: none; }
-  .office { min-height: 0; border-radius: 12px; }
-  .roster { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
-  .roster .st { display: none; }
-  .roster button { padding-right: 10px; white-space: nowrap; flex: none; }
+  /* 사무실은 방 비율에 맞춘 높이, 남는 공간엔 비서 현황 카드 */
+  .office-wrap { overflow-y: auto; }
+  .office { flex: none; min-height: 0; aspect-ratio: 1 / 0.74; border-radius: 12px; }
+  .roster { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .roster button { border-radius: 12px; padding: 6px 8px; align-items: center; text-align: left; min-width: 0; }
+  .roster button > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+  .roster .st { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .roster .mini { width: 34px; height: 34px; }
   .window { width: 16%; } .board { width: 30%; font-size: 10px; } .clock { width: 40px; height: 40px; font-size: 10px; }
   .plant, .coffee { font-size: 24px; }
   .desk { width: 21%; }
