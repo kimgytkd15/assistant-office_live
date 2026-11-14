@@ -1,0 +1,18 @@
+{
+  "name": "비서실 — 나의 개인 비서",
+  "short_name": "비서실",
+  "description": "이름 있는 비서들이 메일·일정·출퇴근·할 일·돈·건강을 챙겨 주는 개인 비서 앱",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ko",
+  "background_color": "#f3f1ed",
+  "theme_color": "#2f3a4f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
