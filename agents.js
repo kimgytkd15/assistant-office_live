@@ -1,6 +1,7 @@
 // 비서 정의 + 각 비서 정보 패널
 import { $, $$, esc, uid, ymd, hhmm, won, state, ctx, save, toast } from './core.js';
 import { computeAlarms, offsetLabel, DEFAULT_SETTINGS } from './alarms.js';
+import { portraitURL } from './critter.js';
 
 const S = () => ({ ...DEFAULT_SETTINGS, ...state.data.settings });
 const openItems = () => state.data.items.filter((i) => !i.done);
@@ -9,24 +10,21 @@ const demoNote = () => (state.mode === 'demo' ? '<span class="pill">데모</span
 const changed = () => { save(); ctx.rerenderPanel(); ctx.refresh(); };
 
 export const AGENTS = [
-  { id: 'mail', name: '하나', short: '메일', role: '메일 비서', emoji: '✉️', color: '#c8574d', desk: { x: 12.5, y: 36 } },
-  { id: 'calendar', name: '루나', short: '일정', role: '일정·알림 비서', emoji: '📅', color: '#4a6fc4', desk: { x: 37.5, y: 36 } },
-  { id: 'commute', name: '지호', short: '출퇴근', role: '출퇴근 비서', emoji: '🚇', color: '#3c8c8c', desk: { x: 62.5, y: 36 } },
-  { id: 'tasks', name: '도윤', short: '할 일', role: '할 일 비서', emoji: '✅', color: '#3a8a5c', desk: { x: 87.5, y: 36 } },
-  { id: 'project', name: '태오', short: '프로젝트', role: '프로젝트 비서', emoji: '📂', color: '#6a5acd', desk: { x: 12.5, y: 70 } },
-  { id: 'money', name: '다온', short: '생활비', role: '돈·생활 비서', emoji: '💰', color: '#b8862b', desk: { x: 37.5, y: 70 } },
-  { id: 'routine', name: '소라', short: '건강', role: '건강·자기계발 비서', emoji: '🌿', color: '#5d9b4a', desk: { x: 62.5, y: 70 } },
-  { id: 'notes', name: '미르', short: '기록', role: '기록 비서', emoji: '📝', color: '#8d5fa8', desk: { x: 87.5, y: 70 } },
+  { id: 'mail', body: '#f2958a', name: '하나', short: '메일', role: '메일 비서', emoji: '✉️', color: '#c8574d', desk: { x: 12.5, y: 36 } },
+  { id: 'calendar', body: '#8cb3f0', name: '루나', short: '일정', role: '일정·알림 비서', emoji: '📅', color: '#4a6fc4', desk: { x: 37.5, y: 36 } },
+  { id: 'commute', body: '#68c9c3', name: '지호', short: '출퇴근', role: '출퇴근 비서', emoji: '🚇', color: '#3c8c8c', desk: { x: 62.5, y: 36 } },
+  { id: 'tasks', body: '#86cf9a', name: '도윤', short: '할 일', role: '할 일 비서', emoji: '✅', color: '#3a8a5c', desk: { x: 87.5, y: 36 } },
+  { id: 'project', body: '#ae9bf0', name: '태오', short: '프로젝트', role: '프로젝트 비서', emoji: '📂', color: '#6a5acd', desk: { x: 12.5, y: 70 } },
+  { id: 'money', body: '#f5c65a', name: '다온', short: '생활비', role: '돈·생활 비서', emoji: '💰', color: '#b8862b', desk: { x: 37.5, y: 70 } },
+  { id: 'routine', body: '#f6a96b', name: '소라', short: '건강', role: '건강·자기계발 비서', emoji: '🌿', color: '#5d9b4a', desk: { x: 62.5, y: 70 } },
+  { id: 'notes', body: '#d39be0', name: '미르', short: '기록', role: '기록 비서', emoji: '📝', color: '#8d5fa8', desk: { x: 87.5, y: 70 } },
 ];
 export const agentById = (id) => AGENTS.find((a) => a.id === id);
-// 사진은 사용자가 앱에서 직접 올린 것만 쓴다(기기에만 저장). 기본값은 이름 첫 글자.
-export const profile = (a) => ({ name: state.data.agentProfiles[a.id]?.name || a.name, photo: state.data.agentProfiles[a.id]?.photo || '' });
+// 이름만 바꿀 수 있음 (사진 기능 없음 — 모든 비서는 캐릭터 그림으로 표시)
+export const profile = (a) => ({ name: state.data.agentProfiles[a.id]?.name || a.name });
 
 export function avatarHTML(a, cls = 'av') {
-  const p = profile(a);
-  return p.photo
-    ? `<span class="${cls}" style="--c:${a.color}"><img src="${esc(p.photo)}" alt="" /></span>`
-    : `<span class="${cls}" style="--c:${a.color}"><span class="initial">${esc(p.name.slice(0, 1))}</span></span>`;
+  return `<span class="${cls} portrait"><img src="${portraitURL(a)}" alt="" /></span>`;
 }
 
 // ---------- 상태 문구 / 배지 ----------

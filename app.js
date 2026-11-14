@@ -1,5 +1,5 @@
 // 비서실 — 메인 (사무실 · 체크리스트 · 설정 · 알림 · 로그인)
-import { $, $$, esc, uid, ymd, hhmm, rand, pick, toast, state, ctx, load, save, adopt, resizePhoto } from './core.js';
+import { $, $$, esc, uid, ymd, hhmm, rand, pick, toast, state, ctx, load, save, adopt } from './core.js';
 import { AGENTS, agentById, profile, avatarHTML, statusOf, badgeOf, RENDER, isOverdue, sortItems } from './agents.js';
 import { computeAlarms, offsetLabel, DEFAULT_SETTINGS, localTzOffset } from './alarms.js';
 import * as cloud from './cloud.js';
@@ -40,23 +40,15 @@ function renderPanelHead(a, editing) {
   if (!editing) {
     head.innerHTML = `${avatarHTML(a, 'face big')}
       <div class="grow"><h3>${esc(p.name)}</h3><div class="role">${esc(a.role)}</div><div class="state">${modeText}</div></div>
-      <button class="btn btn-small btn-ghost" id="edit-agent">✎ 이름·사진</button>`;
+      <button class="btn btn-small btn-ghost" id="edit-agent">✎ 이름</button>`;
     $('#edit-agent').onclick = () => renderPanelHead(a, true);
     return;
   }
-  head.innerHTML = `
-    <label class="photo-pick" title="사진 바꾸기">${avatarHTML(a, 'face big')}<input type="file" accept="image/*" id="photo-in" hidden /><span class="cap">사진 변경</span></label>
+  head.innerHTML = `${avatarHTML(a, 'face big')}
     <div class="grow edit-fields"><input class="field" id="name-in" maxlength="10" value="${esc(p.name)}" />
       <div class="inline"><button class="btn btn-small btn-primary" id="name-save">저장</button>
-      <button class="btn btn-small btn-ghost" id="photo-del" ${state.data.agentProfiles[a.id]?.photo ? '' : 'hidden'}>사진 삭제</button>
       <button class="btn btn-small btn-ghost" id="edit-cancel">취소</button></div></div>`;
   const prof = () => (state.data.agentProfiles[a.id] ||= {});
-  $('#photo-in').onchange = async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    try { prof().photo = await resizePhoto(f); save(); paintAgents(); refresh(); renderPanelHead(a, true); toast('사진을 바꿨어요'); }
-    catch { toast('이 이미지는 열 수 없어요'); }
-  };
-  $('#photo-del').onclick = () => { delete prof().photo; save(); paintAgents(); refresh(); renderPanelHead(a, true); };
   $('#name-save').onclick = () => {
     const n = $('#name-in').value.trim(); if (!n) return;
     prof().name = n; save(); paintAgents(); refresh(); renderPanelHead(a, false); say(a.id, `앞으로 ${n}(이)라고 불러 주세요!`);

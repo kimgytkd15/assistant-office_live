@@ -35,7 +35,7 @@ export function defaultData() {
   return {
     items: [], notes: [],
     settings: { ...DEFAULT_SETTINGS },
-    agentProfiles: {},         // { agentId: { name, photo(dataURL) } }
+    agentProfiles: {},         // { agentId: { name } }
     eventAlarms: {},           // { eventId: [offsets] }
     fired: { date: ymd(), ids: [] },
     routines: { date: ymd(), list: ['물 8잔 마시기', '스트레칭 10분', '오늘 회고 3줄'], checked: [] },
@@ -57,7 +57,11 @@ export function load() {
   if (d.routines.date !== today) { d.routines.date = today; d.routines.checked = []; }
   if (d.commute.prepDone.date !== today) d.commute.prepDone = { date: today, checked: [] };
   if (d.fired.date !== today) d.fired = { date: today, ids: [] };
+  // 예전 버전에서 저장된 비서 사진은 더 이상 쓰지 않으므로 기기에서도 지움
+  let hadPhoto = false;
+  for (const p of Object.values(d.agentProfiles || {})) if (p && 'photo' in p) { delete p.photo; hadPhoto = true; }
   state.data = d;
+  if (hadPhoto) { try { localStorage.setItem(storeKey(), JSON.stringify(d)); } catch { /* 무시 */ } }
 }
 export function save() {
   try { localStorage.setItem(storeKey(), JSON.stringify(state.data)); } catch { toast('저장 공간이 부족해요 (사진 크기 확인)'); }
@@ -65,30 +69,12 @@ export function save() {
 }
 // 서버에서 받은 데이터로 교체 (이 기기의 사진은 유지)
 export function adopt(remote) {
-  const photos = Object.fromEntries(Object.entries(state.data.agentProfiles || {}).map(([k, v]) => [k, v.photo]));
   const base = defaultData();
   const d = { ...base, ...remote, settings: { ...base.settings, ...(remote.settings || {}) } };
-  for (const [k, p] of Object.entries(photos)) if (p) (d.agentProfiles[k] ||= {}).photo = p;
   const today = ymd();
   if (d.routines.date !== today) { d.routines.date = today; d.routines.checked = []; }
   if (d.commute.prepDone.date !== today) d.commute.prepDone = { date: today, checked: [] };
   if (d.fired.date !== today) d.fired = { date: today, ids: [] };
   state.data = d;
   try { localStorage.setItem(storeKey(), JSON.stringify(d)); } catch { /* 무시 */ }
-}
-
-// 이미지 파일 → 정사각형으로 잘라 160px JPEG dataURL
-export function resizePhoto(file, size = 160) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas'); c.width = c.height = size;
-      const s = Math.min(img.width, img.height);
-      c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
-      URL.revokeObjectURL(img.src);
-      resolve(c.toDataURL('image/jpeg', 0.85));
-    };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
-  });
 }

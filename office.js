@@ -1,4 +1,5 @@
 // 아이소메트릭 사무실 (Canvas 2D)
+import { drawCritter } from './critter.js';
 // - 바닥을 10×10 칸으로 나누고, 가구가 있는 칸은 막힘 → 비서는 BFS로 길을 찾아 이동 (책상 관통 없음)
 // - 비서는 "자리에서 업무 → 목적지(정수기·커피·책장·소파·프린터·화이트보드)에서 잠깐 → 자리로" 순서로만 움직임
 // - 그림은 모두 코드로 그린 독자 디자인 (외부 이미지 없음)
@@ -218,8 +219,6 @@ export function createOffice(host, { agents, profileOf, statusOf, onClick }) {
   };
 
   // ---------- 비서 ----------
-  const imgCache = new Map();
-  const photo = (src) => { if (!src) return null; let i = imgCache.get(src); if (!i) { i = new Image(); i.src = src; imgCache.set(src, i); } return i.complete && i.naturalWidth ? i : null; };
   const actors = agents.map((a, i) => {
     const [dx, dy] = DESKS[i];
     return { a, i, seat: [dx, dy - 1], x: dx, y: dy - 1, path: [], mode: 'work', until: performance.now() + rand(2000, 12000),
@@ -263,77 +262,24 @@ export function createOffice(host, { agents, profileOf, statusOf, onClick }) {
     } else { ac.x += dx / d * speed; ac.y += dy / d * speed; }
   }
 
-  // 인물: 얼굴 사진(있으면) + 정장 상체 + 다리. 블록 느낌이 나지 않게 어깨·허리 곡선과 옷깃을 그림
-  const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
+  // 비서 캐릭터 (critter.js): 앉아 있으면 책상 뒤로 몸 아래가 가려짐
   function drawPerson(ac, now) {
     const u = cu;
     const sitting = ac.mode === 'work', walking = ac.mode === 'walk';
     const [fx, fy] = P(ac.x + 0.5, ac.y + 0.5);
-    const t = now / 120 + ac.i;
-    const bob = walking ? Math.abs(Math.sin(t)) * 1.6 * u : Math.sin(now / 900 + ac.i) * 0.5 * u;
-    const lift = sitting ? 6 * u : 0;
     const isSel = selected === ac.a.id;
-    // 그림자 / 선택 링
     g.fillStyle = 'rgba(60,40,40,.16)'; g.beginPath(); g.ellipse(fx, fy, 11 * u, 5 * u, 0, 0, 7); g.fill();
     if (isSel) { g.strokeStyle = '#3563d9'; g.lineWidth = 2.5 * u; g.beginPath(); g.ellipse(fx, fy, 16 * u, 7.5 * u, 0, 0, 7); g.stroke(); }
-    const base = fy - lift - bob;          // 허리 아래 기준
-    const c = ac.a.color, dark = shade(c, 0.78), light = shade(c, 1.12);
-    // 다리 (서 있을 때)
-    if (!sitting) {
-      const sw = walking ? Math.sin(t) * 2.6 * u : 0;
-      g.lineCap = 'round';
-      [[-3.2, sw], [3.2, -sw]].forEach(([dx, s]) => {
-        g.strokeStyle = OUT; g.lineWidth = 5.2 * u; g.beginPath(); g.moveTo(fx + dx * u, base - 13 * u); g.lineTo(fx + dx * u + s, fy - 2 * u); g.stroke();
-        g.strokeStyle = '#3e4352'; g.lineWidth = 3.6 * u; g.beginPath(); g.moveTo(fx + dx * u, base - 13 * u); g.lineTo(fx + dx * u + s, fy - 2 * u); g.stroke();
-        circle(fx + dx * u + s, fy - 1.5 * u, 2.2 * u, '#2b2b33', null);
-      });
-    }
-    // 상체: 어깨가 넓고 허리가 좁은 재킷
-    const top = base - 33 * u, waist = base - 12 * u;
-    g.beginPath();
-    g.moveTo(fx - 7 * u, waist);
-    g.quadraticCurveTo(fx - 9.5 * u, waist - 9 * u, fx - 10.5 * u, top + 5 * u);
-    g.quadraticCurveTo(fx - 10 * u, top, fx - 4 * u, top);
-    g.lineTo(fx + 4 * u, top);
-    g.quadraticCurveTo(fx + 10 * u, top, fx + 10.5 * u, top + 5 * u);
-    g.quadraticCurveTo(fx + 9.5 * u, waist - 9 * u, fx + 7 * u, waist);
-    g.closePath();
-    const jg = g.createLinearGradient(fx - 10 * u, 0, fx + 10 * u, 0); jg.addColorStop(0, light); jg.addColorStop(1, dark);
-    g.fillStyle = jg; g.fill(); g.strokeStyle = OUT; g.lineWidth = 1.2 * u; g.stroke();
-    // 블라우스 V넥 + 옷깃
-    poly([[fx - 3.6 * u, top], [fx + 3.6 * u, top], [fx, top + 9 * u]], '#fffaf3', null);
-    poly([[fx - 4 * u, top], [fx - 1 * u, top + 9 * u], [fx - 5 * u, top + 7 * u]], dark, OUT, 0.8);
-    poly([[fx + 4 * u, top], [fx + 1 * u, top + 9 * u], [fx + 5 * u, top + 7 * u]], dark, OUT, 0.8);
-    // 팔 (재킷 소매 + 손)
-    const sway = walking ? Math.sin(t) * 2 * u : sitting ? Math.sin(now / 170 + ac.i) * 1 * u : 0;
-    g.lineCap = 'round';
-    [[-1, sway], [1, -sway]].forEach(([side, s]) => {
-      const sx = fx + side * 9.6 * u, sy = top + 4 * u, hx2 = fx + side * (sitting ? 7 : 10.5) * u + s, hy2 = waist - (sitting ? 2 : 1) * u;
-      g.strokeStyle = OUT; g.lineWidth = 5 * u; g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx2, hy2); g.stroke();
-      g.strokeStyle = side < 0 ? light : dark; g.lineWidth = 3.4 * u; g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx2, hy2); g.stroke();
-      circle(hx2, hy2 + 1 * u, 1.9 * u, '#f3cdb0', OUT, 0.8);
+    const s = u * 1.05, h = 14.5 * s;
+    const hop = walking ? Math.abs(Math.sin(now / 110 + ac.i)) * 2.4 * u : Math.sin(now / 800 + ac.i) * 0.6 * u;
+    const by = fy - (sitting ? 10 * u : 0) - hop - h * 0.95 - 2.6 * s;
+    const blink = (now / 1000 + ac.i * 0.73) % 4 < 0.12;
+    drawCritter(g, fx, by, s, ac.a, {
+      face: ac.face, walk: walking ? now / 110 + ac.i : 0, sitting, blink, typing: sitting ? now / 140 + ac.i : 0,
     });
-    // 목
-    g.fillStyle = '#f3cdb0'; g.fillRect(fx - 2.4 * u, top - 4 * u, 4.8 * u, 5 * u);
-    // 얼굴
-    const r = 13 * u, hx = fx, hy = top - 4 * u - r + 2 * u;
-    const prof = profileOf(ac.a); const img = photo(prof.photo);
-    g.save(); g.shadowColor = 'rgba(40,25,25,.25)'; g.shadowBlur = 4 * u; g.shadowOffsetY = 1.5 * u;
-    circle(hx, hy, r + 1.8 * u, '#ffffff', null); g.restore();
-    if (img) {
-      g.save(); g.beginPath(); g.arc(hx, hy, r, 0, 7); g.clip();
-      const s = Math.min(img.naturalWidth, img.naturalHeight); // 정사각형 중앙(살짝 위쪽)을 얼굴로 사용
-      g.drawImage(img, (img.naturalWidth - s) / 2, Math.max(0, (img.naturalHeight - s) / 2 - s * 0.04), s, s, hx - r, hy - r, r * 2, r * 2);
-      g.restore();
-    } else {
-      circle(hx, hy, r, '#f6d6bd', null);
-      g.beginPath(); g.arc(hx, hy - 1 * u, r, Math.PI * 1.05, Math.PI * 1.95); g.quadraticCurveTo(hx, hy - 6 * u, hx - r * 0.95, hy - 3 * u); g.fillStyle = ac.hair; g.fill();
-      const ex = ac.face * 1.5 * u;
-      circle(hx - 4.5 * u + ex, hy + 2 * u, 1.4 * u, '#3a2a28', null); circle(hx + 4.5 * u + ex, hy + 2 * u, 1.4 * u, '#3a2a28', null);
-      g.strokeStyle = '#b5655e'; g.lineWidth = 1 * u; g.beginPath(); g.arc(hx + ex, hy + 5.5 * u, 2 * u, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
-    }
-    circle(hx, hy, r + 1.8 * u, null, isSel ? '#3563d9' : OUT, isSel ? 2 : 1);
-    ac.hit = { x: fx - 16 * u, y: hy - r - 4 * u, w: 32 * u, h: fy - (hy - r - 4 * u) + 4 * u, hx, hy, r: r + 1.8 * u };
+    if (isSel) { g.strokeStyle = '#3563d9'; g.lineWidth = 1.5 * u; }
+    const hx = fx, hy = by - h * 0.35, r = h * 0.75;
+    ac.hit = { x: fx - 16 * u, y: by - h - 10 * u, w: 32 * u, h: fy - (by - h - 10 * u) + 4 * u, hx, hy, r };
   }
   function drawOverlays(ac, now) {
     const u = Math.max(cu, 0.9); // 글자는 최소 크기 보장
