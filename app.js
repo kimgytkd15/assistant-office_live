@@ -259,7 +259,13 @@ function openSettings() {
     openSettings();
   };
   const off = $('#push-off'); if (off) off.onclick = async () => { await cloud.disablePush(); pushOn = false; toast('이 기기 푸시를 껐어요'); openSettings(); };
-  $('#test-noti').onclick = () => notify({ id: 'test:' + Date.now(), title: '🔔 테스트 알림', body: '비서실 알림이 잘 와요!', agent: 'calendar' }, true);
+  $('#test-noti').onclick = async () => {
+    if (pushOn) { // 서버를 거쳐 실제 푸시로 확인
+      const r = await cloud.api('test-push');
+      return toast(r.sent ? `서버 푸시를 보냈어요 (${r.sent}대)` : `푸시 실패: ${r.error || '구독된 기기 없음'}`);
+    }
+    notify({ id: 'test:' + Date.now(), title: '🔔 테스트 알림', body: '비서실 알림이 잘 와요!', agent: 'calendar' }, true);
+  };
   $('#settings').showModal();
 }
 $('#btn-settings').onclick = openSettings;
